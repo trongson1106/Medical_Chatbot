@@ -57,10 +57,4 @@ It indexes medical PDF documents into a vector database and answers questions by
 
 ---
 
-## Installation
-
-1. **Clone the repository**
-
-   git clone <your-repo-url>
-   cd Medical_Chatbot
    
