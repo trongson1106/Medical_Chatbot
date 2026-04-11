@@ -1,10 +1,5 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 from src.helper import download_embeddings
-from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from typing import List
-from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -13,9 +8,7 @@ from src.prompt import *
 from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
 import os
-from src.helper import load_pdf_files, filter_to_minimal_docs, text_split, download_embeddings
-from pinecone import Pinecone
-from pinecone import ServerlessSpec
+from src.helper import download_embeddings
 from langchain_pinecone import PineconeVectorStore
 
 app = Flask(__name__)
@@ -23,17 +16,17 @@ app = Flask(__name__)
 load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 print(PINECONE_API_KEY)
-print(GOOGLE_API_KEY)
+print(GEMINI_API_KEY)
 
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
 
 chat_model = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    google_api_key="AIzaSyBcDm4u8pg6yFOhzpGq_r0zrkf_J9DIcG4"  # from aistudio.google.com
+    GEMINI_API_KEY=GEMINI_API_KEY  # from aistudio.google.com
 )
 
 embeddings = download_embeddings()
