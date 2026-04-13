@@ -1,15 +1,12 @@
 from flask import Flask, render_template, request
-from src.helper import download_embeddings
+from langchain.agents import create_agent
+from langchain.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.chains import create_retrieval_chain
-from langchain_classic.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-from src.prompt import *
 from langchain_pinecone import PineconeVectorStore
+from src.helper import download_embeddings
+from src.prompt import system_prompt
 from dotenv import load_dotenv
 import os
-from src.helper import download_embeddings
-from langchain_pinecone import PineconeVectorStore
 
 app = Flask(__name__)
 
@@ -38,18 +35,23 @@ docsearch = PineconeVectorStore.from_existing_index(
     embedding=embeddings
 )
 
-prompt = ChatPromptTemplate(
-    [
-        ("system", system_prompt),
-        ("human", "{input}")
-    ]
+# Define retriever as a tool (new LangChain 1.0 way)
+@tool(response_format="content_and_artifact")
+def retrieve_medical_context(query: str):
+    """Retrieve relevant medical information to help answer a query."""
+    retrieved_docs = docsearch.similarity_search(query, k=3)
+    serialized = "\n\n".join(
+        f"Source: {doc.metadata}\nContent: {doc.page_content}"
+        for doc in retrieved_docs
+    )
+    return serialized, retrieved_docs
+
+# Create agent (replaces create_retrieval_chain + create_stuff_documents_chain)
+agent = create_agent(
+    chat_model,
+    tools=[retrieve_medical_context],
+    system_prompt=system_prompt
 )
-
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
-
-question_answer_chain = create_stuff_documents_chain(chat_model, prompt)
-rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-
 
 @app.route("/")
 def index():
@@ -61,9 +63,12 @@ def chat():
     msg = request.form["msg"]
     input = msg
     print(input)
-    response = rag_chain.invoke({"input": msg})
-    print("Response : ", response["answer"])
-    return str(response["answer"])
+    response = agent.invoke({
+        "messages": [{"role": "user", "content": msg}]
+    })
+    answer = response["messages"][-1].content
+    print("Response : ", answer)
+    return str(answer[0]["text"])
 
 
 if __name__ == "__main__":
